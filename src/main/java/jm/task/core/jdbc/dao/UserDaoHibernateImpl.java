@@ -4,13 +4,28 @@ import jm.task.core.jdbc.model.User;
 import jm.task.core.jdbc.util.Util;
 
 import org.hibernate.Session;
+import org.hibernate.Transaction;
 
 import java.util.List;
 
 public class UserDaoHibernateImpl implements UserDao {
+    private static Transaction transaction;
 
     public UserDaoHibernateImpl() {
 
+    }
+
+    private void executeQuery(String query) {
+        try (Session currentSession = Util.getSessionFactory().getCurrentSession()) {
+            transaction = currentSession.beginTransaction();
+            currentSession.createSQLQuery(query).executeUpdate();
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -25,51 +40,57 @@ public class UserDaoHibernateImpl implements UserDao {
                     PRIMARY KEY (id)
                 )
                 """;
-
-        try (Session currentSession = Util.getSessionFactory().getCurrentSession()) {
-            currentSession.beginTransaction();
-            currentSession.createSQLQuery(query).executeUpdate();
-            currentSession.getTransaction().commit();
-        }
+        executeQuery(query);
     }
+
 
     @Override
     public void dropUsersTable() {
         String query = "DROP TABLE IF EXISTS users";
-
-        try (Session currentSession = Util.getSessionFactory().getCurrentSession()) {
-            currentSession.beginTransaction();
-            currentSession.createSQLQuery(query).executeUpdate();
-            currentSession.getTransaction().commit();
-        }
+        executeQuery(query);
     }
 
     @Override
     public void saveUser(String name, String lastName, byte age) {
         try (Session currentSession = Util.getSessionFactory().getCurrentSession()) {
-            currentSession.beginTransaction();
+            transaction = currentSession.beginTransaction();
             currentSession.save(new User(name, lastName, age));
-            currentSession.getTransaction().commit();
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            e.printStackTrace();
         }
     }
 
     @Override
     public void removeUserById(long id) {
         try (Session currentSession = Util.getSessionFactory().getCurrentSession()) {
-            currentSession.beginTransaction();
+            transaction = currentSession.beginTransaction();
             currentSession.delete(currentSession.get(User.class, id));
-            currentSession.getTransaction().commit();
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            e.printStackTrace();
         }
     }
 
     @Override
     public List<User> getAllUsers() {
-        List<User> users;
+        List<User> users = null;
 
         try (Session currentSession = Util.getSessionFactory().getCurrentSession()) {
-            currentSession.beginTransaction();
+            transaction = currentSession.beginTransaction();
             users = currentSession.createSQLQuery("SELECT * FROM users").addEntity(User.class).getResultList();
-            currentSession.getTransaction().commit();
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            e.printStackTrace();
         }
         return users;
     }
@@ -77,11 +98,6 @@ public class UserDaoHibernateImpl implements UserDao {
     @Override
     public void cleanUsersTable() {
         String query = "DELETE FROM users";
-
-        try (Session currentSession = Util.getSessionFactory().getCurrentSession()) {
-            currentSession.beginTransaction();
-            currentSession.createSQLQuery(query).executeUpdate();
-            currentSession.getTransaction().commit();
-        }
+        executeQuery(query);
     }
 }
